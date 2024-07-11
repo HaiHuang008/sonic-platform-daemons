@@ -51,14 +51,16 @@ def get_lane_speed_key(physical_port, port_speed, lane_count):
     sfp = xcvrd.platform_chassis.get_sfp(physical_port)
     api = sfp.get_xcvr_api()
     
-    lane_speed_key = None
+    lane_speed_key = []
     if xcvrd.is_cmis_api(api):
         appl_adv_dict = api.get_application_advertisement()
         app_id = xcvrd.get_cmis_application_desired(api, int(lane_count), int(port_speed))
         if app_id and app_id in appl_adv_dict:
             host_electrical_interface_id = appl_adv_dict[app_id].get('host_electrical_interface_id')
             if host_electrical_interface_id:
-                lane_speed_key = LANE_SPEED_KEY_PREFIX + host_electrical_interface_id.split()[0]
+                lane_speed_key.append(LANE_SPEED_KEY_PREFIX + host_electrical_interface_id.split()[0])
+
+    lane_speed_key.append(LANE_SPEED_KEY_PREFIX + str(int(int(port_speed) / int(lane_count))))
 
     return lane_speed_key
 
@@ -182,10 +184,10 @@ def get_media_settings_value(physical_port, key):
                 re.match(dict_key, key[VENDOR_KEY].split('-')[0]) # e.g: 'AMPHENOL-1234'
                 or re.match(dict_key, key[MEDIA_KEY]) ): # e.g: 'QSFP28-40GBASE-CR4-1M'
                 if is_si_per_speed_supported(media_dict[dict_key]):
-                    if key[LANE_SPEED_KEY] is not None and key[LANE_SPEED_KEY] in media_dict[dict_key]: # e.g: 'speed:400GAUI-8'
-                        return media_dict[dict_key][key[LANE_SPEED_KEY]]
-                    else:
-                        return {}
+                    for speed in key[LANE_SPEED_KEY]: # e.g: 'speed:400GAUI-8' or 'speed:100000'
+                        if speed in media_dict[dict_key]:
+                            return media_dict[dict_key][speed]
+                    return {}
                 else:
                     return media_dict[dict_key]
         return None
